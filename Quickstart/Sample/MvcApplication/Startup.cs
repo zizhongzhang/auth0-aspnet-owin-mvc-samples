@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Configuration;
+using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
@@ -22,6 +24,7 @@ namespace MvcApplication
             // Configure Auth0 parameters
             string auth0Domain = ConfigurationManager.AppSettings["auth0:Domain"];
             string auth0ClientId = ConfigurationManager.AppSettings["auth0:ClientId"];
+            string auth0ClientSecret = ConfigurationManager.AppSettings["auth0:ClientSecret"];
             string auth0RedirectUri = ConfigurationManager.AppSettings["auth0:RedirectUri"];
             string auth0PostLogoutRedirectUri = ConfigurationManager.AppSettings["auth0:PostLogoutRedirectUri"];
 
@@ -40,13 +43,16 @@ namespace MvcApplication
             // Configure Auth0 authentication
             app.UseOpenIdConnectAuthentication(new OpenIdConnectAuthenticationOptions
             {
+                ResponseType = "code",
                 AuthenticationType = "Auth0",
                 
                 Authority = $"https://{auth0Domain}",
 
                 ClientId = auth0ClientId,
+                ClientSecret = auth0ClientSecret,
 
                 RedirectUri = auth0RedirectUri,
+
                 PostLogoutRedirectUri = auth0PostLogoutRedirectUri,
 
                 Scope = "openid profile email",
@@ -62,6 +68,27 @@ namespace MvcApplication
 
                 Notifications = new OpenIdConnectAuthenticationNotifications
                 {
+                    TokenResponseReceived = async (context) =>
+                    {
+                        // Inspect the received tokens
+                        var accessToken = context.TokenEndpointResponse.AccessToken;
+                        var idToken = context.TokenEndpointResponse.IdToken;
+
+                        // Perform custom logic with the tokens if needed
+                        var identity = new ClaimsIdentity(Enumerable.Empty<Claim>(), "Cookies");
+
+                        // Manually sign in the user using the "Cookies" authentication scheme
+                        var authProperties = new AuthenticationProperties
+                        {
+                            // Set any custom properties if needed
+                        };
+
+                        // Sign in the user
+                        context.OwinContext.Authentication.SignIn(authProperties, identity);
+
+                        // Call the next delegate in the pipeline
+                        await Task.CompletedTask;
+                    },
                     RedirectToIdentityProvider = notification =>
                     {
                         if (notification.ProtocolMessage.RequestType == OpenIdConnectRequestType.Logout)
