@@ -1,8 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Configuration;
+using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
+using System.Net.Http;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using IdentityModel.Client;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Owin;
@@ -11,6 +15,7 @@ using Microsoft.Owin.Security;
 using Microsoft.Owin.Security.Cookies;
 using Microsoft.Owin.Security.OpenIdConnect;
 using MvcApplication.Support;
+using Newtonsoft.Json.Linq;
 using Owin;
 
 [assembly: OwinStartup(typeof(MvcApplication.Startup))]
@@ -45,7 +50,7 @@ namespace MvcApplication
             {
                 ResponseType = "code",
                 AuthenticationType = "Auth0",
-                
+                UsePkce = false,
                 Authority = $"https://{auth0Domain}",
 
                 ClientId = auth0ClientId,
@@ -89,6 +94,7 @@ namespace MvcApplication
                         // Call the next delegate in the pipeline
                         await Task.CompletedTask;
                     },
+
                     RedirectToIdentityProvider = notification =>
                     {
                         if (notification.ProtocolMessage.RequestType == OpenIdConnectRequestType.Logout)
@@ -104,7 +110,7 @@ namespace MvcApplication
                                     var request = notification.Request;
                                     postLogoutUri = request.Scheme + "://" + request.Host + request.PathBase + postLogoutUri;
                                 }
-                                logoutUri += $"&returnTo={ Uri.EscapeDataString(postLogoutUri)}";
+                                logoutUri += $"&returnTo={Uri.EscapeDataString(postLogoutUri)}";
                             }
 
                             notification.Response.Redirect(logoutUri);
